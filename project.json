@@ -66,6 +66,15 @@
         "jestConfig": "jest.config.ts"
       }
     },
+    "integration-test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/harness/coverage/api"],
+      "options": {
+        "jestConfig": "jest.config.integration.ts",
+        "runInBand": true,
+        "passWithNoTests": false
+      }
+    },
     "docker-build": {
       "dependsOn": ["build"],
       "command": "docker build -f Dockerfile . -t api"
