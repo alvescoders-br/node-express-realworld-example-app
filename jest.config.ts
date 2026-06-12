@@ -7,7 +7,17 @@ export default {
     '^.+\\.[tj]s$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
-  coverageDirectory: './coverage/api',
+  // reportPath in harness-manifest.json is relative to REPO_ROOT (harness/).
+  // coverage-check.py resolves: harness/ + "coverage/api/lcov.info".
+  coverageDirectory: './harness/coverage/api',
+  coverageReporters: ['lcov', 'text'],
+  // Collect coverage from the app files directly exercised by the contract tests:
+  // the Express app entry point and the auth middleware (the two contract surfaces).
+  collectCoverageFrom: [
+    'src/app.ts',
+    'src/app/routes/auth/auth.ts',
+    'src/app/routes/routes.ts',
+  ],
   testMatch: [
     '<rootDir>/src/**/__tests__/**/*.[jt]s?(x)',
     '<rootDir>/src/**/*(*.)@(spec|test).[jt]s?(x)',
