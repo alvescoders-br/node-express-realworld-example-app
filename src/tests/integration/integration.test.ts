@@ -278,14 +278,20 @@ describe('Integration — articles flow', () => {
   });
 
   it('PUT /api/articles/:slug — alice updates article → 200 { article: { body: updated } }', async () => {
+    // updateArticle always disconnects all tags before reconnecting (see article.service.ts
+    // disconnectArticlesTags).  tagList must be re-sent to preserve existing tags; omitting
+    // it clears them.  We re-send the original tags so the tags-flow test (section 6) can
+    // still assert alice's tags appear in GET /api/tags.
     const res = await request(app)
       .put(`/api/articles/${slugA}`)
       .set(authHeader(tokenA))
-      .send({ article: { body: 'Updated body by alice' } });
+      .send({ article: { body: 'Updated body by alice', tagList: ALICE_ARTICLE.tagList } });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('article');
     expect(res.body.article.body).toBe('Updated body by alice');
+    // Tags are preserved because they were re-sent
+    expect(res.body.article.tagList).toEqual(expect.arrayContaining(ALICE_ARTICLE.tagList));
     // Slug may have changed if title was updated; capture new slug
     slugA = res.body.article.slug;
   });
