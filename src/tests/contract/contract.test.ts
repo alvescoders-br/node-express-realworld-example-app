@@ -1,5 +1,5 @@
 // Contract tests — Phase 2 slice 3, issue #6
-// Asserts the live API against harness/docs/api/openapi.json (19 operations).
+// Asserts the live API against harness/docs/api/openapi.json (20 operations).
 // No real database required; no OpenAPI/Swagger validator dependencies.
 // Scope: route existence, auth-per-route, 401/422 structural error shapes.
 // Do NOT normalise the documented inconsistencies (see openapi.json notes).
@@ -75,13 +75,13 @@ describe('Contract — OpenAPI spec sanity', () => {
     expect(spec.openapi).toBe('3.0.3');
   });
 
-  it('spec has exactly 19 operations', () => {
-    expect(countOperations(spec)).toBe(19);
+  it('spec has exactly 20 operations', () => {
+    expect(countOperations(spec)).toBe(20);
   });
 });
 
 // ---------------------------------------------------------------------------
-// 2. auth.required — 12 operations must return 401 + UnauthorizedError envelope
+// 2. auth.required — 13 operations must return 401 + UnauthorizedError envelope
 //    Regression: if a route is removed/renamed the mock never fires and the
 //    test receives an Express text/html 404 → status ≠ 401 → FAIL.
 //    If auth.required changes to optional the handler proceeds past the
@@ -97,6 +97,7 @@ const AUTH_REQUIRED_ROUTES = [
   { id: 'deleteComment',     method: 'delete', url: '/api/articles/x/comments/1' },
   { id: 'favoriteArticle',   method: 'post',   url: '/api/articles/x/favorite' },
   { id: 'unfavoriteArticle', method: 'delete', url: '/api/articles/x/favorite' },
+  { id: 'bookmarkArticle',   method: 'post',   url: '/api/articles/x/bookmark' },
   { id: 'followUser',        method: 'post',   url: '/api/profiles/x/follow' },
   { id: 'unfollowUser',      method: 'delete', url: '/api/profiles/x/follow' },
   { id: 'getCurrentUser',    method: 'get',    url: '/api/user' },
@@ -200,15 +201,15 @@ describe('Contract — auth.none: 422 ValidationErrorResponse on blank fields', 
 // ---------------------------------------------------------------------------
 
 describe('Contract — regression guard: route table sizes vs spec', () => {
-  it('auth.required table has 12 entries', () => {
-    expect(AUTH_REQUIRED_ROUTES).toHaveLength(12);
+  it('auth.required table has 13 entries', () => {
+    expect(AUTH_REQUIRED_ROUTES).toHaveLength(13);
   });
 
   it('auth.optional table has 5 entries', () => {
     expect(AUTH_OPTIONAL_ROUTES).toHaveLength(5);
   });
 
-  it('12 (required) + 5 (optional) + 2 (none) = 19 spec operations', () => {
+  it('13 (required) + 5 (optional) + 2 (none) = 20 spec operations', () => {
     expect(AUTH_REQUIRED_ROUTES.length + AUTH_OPTIONAL_ROUTES.length + 2).toBe(
       countOperations(spec),
     );

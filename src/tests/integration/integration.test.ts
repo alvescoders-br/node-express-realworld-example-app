@@ -428,7 +428,34 @@ describe('Integration — favorites flow (documented spread inconsistency)', () 
 });
 
 // ===========================================================================
-// 6. Tags flow
+// 6. Bookmarks flow — POST-only scope approved for this slice.  DELETE
+//    /bookmark remains intentionally unimplemented until separately approved.
+// ===========================================================================
+
+describe('Integration — bookmarks flow', () => {
+  it('POST /api/articles/:slug/bookmark — bob bookmarks alice\'s article → 200 { article: { bookmarked: true } }', async () => {
+    const res = await request(app)
+      .post(`/api/articles/${slugA}/bookmark`)
+      .set(authHeader(tokenB));
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('article');
+    const { article } = res.body;
+
+    expect(article.slug).toBe(slugA);
+    expect(article.bookmarked).toBe(true);
+    expect(article.bookmarksCount).toBeGreaterThanOrEqual(1);
+    expect(article.author.username).toBe(ALICE.username);
+    expect(article.favorited).toBe(false);
+    expect(article.favoritesCount).toBe(0);
+    expect(article.id).toBeUndefined();
+    expect(article.authorId).toBeUndefined();
+    expect(article.bookmarkedBy).toBeUndefined();
+  });
+});
+
+// ===========================================================================
+// 7. Tags flow
 // ===========================================================================
 
 describe('Integration — tags flow', () => {
@@ -448,7 +475,7 @@ describe('Integration — tags flow', () => {
 });
 
 // ===========================================================================
-// 7. Profiles — unfollow
+// 8. Profiles — unfollow
 // ===========================================================================
 
 describe('Integration — profiles unfollow', () => {
@@ -464,7 +491,7 @@ describe('Integration — profiles unfollow', () => {
 });
 
 // ===========================================================================
-// 8. Article deletion
+// 9. Article deletion
 // ===========================================================================
 
 describe('Integration — article deletion', () => {
@@ -486,7 +513,7 @@ describe('Integration — article deletion', () => {
 });
 
 // ===========================================================================
-// 9. Negative tests — gate: negative_tests (deterministic gate for Category C)
+// 10. Negative tests — gate: negative_tests (deterministic gate for Category C)
 // ===========================================================================
 
 describe('Integration — negative tests (401 unauthorized)', () => {
@@ -503,6 +530,11 @@ describe('Integration — negative tests (401 unauthorized)', () => {
     const res = await request(app)
       .post('/api/articles')
       .send({ article: { title: 'x', description: 'x', body: 'x' } });
+    expect(res.status).toBe(401);
+  });
+
+  it('POST /api/articles/:slug/bookmark without token → 401', async () => {
+    const res = await request(app).post(`/api/articles/${slugB}/bookmark`);
     expect(res.status).toBe(401);
   });
 

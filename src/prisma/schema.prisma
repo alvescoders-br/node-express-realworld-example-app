@@ -9,18 +9,19 @@ generator client {
 }
 
 model Article {
-  id          Int       @id @default(autoincrement())
-  slug        String    @unique
-  title       String
-  description String
-  body        String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @default(now())
-  tagList     Tag[]
-  author      User      @relation("UserArticles", fields: [authorId], onDelete: Cascade, references: [id])
-  authorId    Int
-  favoritedBy User[]    @relation("UserFavorites")
-  comments    Comment[]
+  id           Int       @id @default(autoincrement())
+  slug         String    @unique
+  title        String
+  description  String
+  body         String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now())
+  tagList      Tag[]
+  author       User      @relation("UserArticles", fields: [authorId], onDelete: Cascade, references: [id])
+  authorId     Int
+  favoritedBy  User[]    @relation("UserFavorites")
+  bookmarkedBy User[]    @relation("UserBookmarks")
+  comments     Comment[]
 }
 
 model Comment {
@@ -49,6 +50,7 @@ model User {
   bio        String?
   articles   Article[] @relation("UserArticles")
   favorites  Article[] @relation("UserFavorites")
+  bookmarks  Article[] @relation("UserBookmarks")
   followedBy User[]    @relation("UserFollows")
   following  User[]    @relation("UserFollows")
   comments   Comment[]
