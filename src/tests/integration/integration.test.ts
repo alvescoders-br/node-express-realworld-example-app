@@ -40,6 +40,9 @@ const BOB = {
   password: 'BobPass1!',
 };
 
+const LOGIN_RATE_LIMIT_MAX_FOR_TESTS = 3;
+const RATE_LIMIT_TARGET_EMAIL = 'rate-limit-target@int.test';
+
 const ALICE_ARTICLE = {
   title: 'Integration Test Article By Alice',
   description: 'A test article by alice',
@@ -133,6 +136,34 @@ describe('Integration — auth flow', () => {
     expect(typeof user.token).toBe('string');
     // Refresh token
     tokenA = user.token;
+  });
+
+  it('POST /api/users/login — repeated failed attempts → 429 + rate-limit headers', async () => {
+    const failedLoginPayload = {
+      user: { email: RATE_LIMIT_TARGET_EMAIL, password: 'WrongPass999!' },
+    };
+
+    for (let attempt = 0; attempt < LOGIN_RATE_LIMIT_MAX_FOR_TESTS; attempt += 1) {
+      const failedRes = await request(app)
+        .post('/api/users/login')
+        .send(failedLoginPayload);
+
+      expect(failedRes.status).toBe(403);
+    }
+
+    const blockedRes = await request(app)
+      .post('/api/users/login')
+      .send(failedLoginPayload);
+    const hasRateLimitHeader = Boolean(
+      blockedRes.headers['ratelimit-limit'] ||
+        blockedRes.headers['ratelimit'] ||
+        blockedRes.headers['x-ratelimit-limit'],
+    );
+
+    expect(blockedRes.status).toBe(429);
+    expect(blockedRes.body).toEqual({ errors: { login: ['rate limit exceeded'] } });
+    expect(hasRateLimitHeader).toBe(true);
+    expect(blockedRes.headers['retry-after']).toBeDefined();
   });
 
   it('GET /api/user — current user via alice token → 200 { user: { email, username, bio, image, token } }', async () => {

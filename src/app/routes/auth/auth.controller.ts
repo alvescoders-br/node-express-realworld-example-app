@@ -1,6 +1,8 @@
-import { NextFunction, Request, Response, Router } from 'express';
+import { Request, Response, Router } from 'express';
 import auth from './auth';
+import { asyncHandler } from '../async-handler';
 import { createUser, getCurrentUser, login, updateUser } from './auth.service';
+import { loginRateLimiter } from './login-rate-limit.middleware';
 
 const router = Router();
 
@@ -11,14 +13,13 @@ const router = Router();
  * @bodyparam user User
  * @returns user User
  */
-router.post('/users', async (req: Request, res: Response, next: NextFunction) => {
-  try {
+router.post(
+  '/users',
+  asyncHandler(async (req: Request, res: Response) => {
     const user = await createUser({ ...req.body.user, demo: false });
     res.status(201).json({ user });
-  } catch (error) {
-    next(error);
-  }
-});
+  }),
+);
 
 /**
  * Login
@@ -27,14 +28,14 @@ router.post('/users', async (req: Request, res: Response, next: NextFunction) =>
  * @bodyparam user User
  * @returns user User
  */
-router.post('/users/login', async (req: Request, res: Response, next: NextFunction) => {
-  try {
+router.post(
+  '/users/login',
+  loginRateLimiter,
+  asyncHandler(async (req: Request, res: Response) => {
     const user = await login(req.body.user);
     res.json({ user });
-  } catch (error) {
-    next(error);
-  }
-});
+  }),
+);
 
 /**
  * Get current user
@@ -42,14 +43,14 @@ router.post('/users/login', async (req: Request, res: Response, next: NextFuncti
  * @route {GET} /user
  * @returns user User
  */
-router.get('/user', auth.required, async (req: Request, res: Response, next: NextFunction) => {
-  try {
+router.get(
+  '/user',
+  auth.required,
+  asyncHandler(async (req: Request, res: Response) => {
     const user = await getCurrentUser(req.auth?.user?.id);
     res.json({ user });
-  } catch (error) {
-    next(error);
-  }
-});
+  }),
+);
 
 /**
  * Update user
@@ -58,13 +59,13 @@ router.get('/user', auth.required, async (req: Request, res: Response, next: Nex
  * @bodyparam user User
  * @returns user User
  */
-router.put('/user', auth.required, async (req: Request, res: Response, next: NextFunction) => {
-  try {
+router.put(
+  '/user',
+  auth.required,
+  asyncHandler(async (req: Request, res: Response) => {
     const user = await updateUser(req.body.user, req.auth?.user?.id);
     res.json({ user });
-  } catch (error) {
-    next(error);
-  }
-});
+  }),
+);
 
 export default router;

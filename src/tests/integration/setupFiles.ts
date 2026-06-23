@@ -8,3 +8,5 @@ process.env['DATABASE_URL'] =
   'postgresql://conduit_test:conduit_test_pass@localhost:5433/conduit_test';
 process.env['JWT_SECRET'] = 'superSecret'; // matches default in token.utils.ts
 process.env['NODE_ENV'] = 'test';
+process.env['LOGIN_RATE_LIMIT_MAX'] = '3';
+process.env['LOGIN_RATE_LIMIT_WINDOW_MS'] = '60000';
