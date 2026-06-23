@@ -42,6 +42,10 @@ testem.log
 .DS_Store
 Thumbs.db
 
+# Python
+__pycache__/
+*.pyc
+
 .nx/cache
 .coda/skills/
 source/

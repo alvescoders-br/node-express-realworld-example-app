@@ -3,6 +3,7 @@ import cors from 'cors';
 import * as bodyParser from 'body-parser';
 import routes from './app/routes/routes';
 import HttpException from './app/models/http-exception.model';
+import { requestTelemetryMiddleware } from './observability/request-telemetry.middleware';
 
 const app = express();
 
@@ -14,6 +15,7 @@ const isUnauthorizedError = (err: Error | HttpException): err is UnauthorizedErr
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(requestTelemetryMiddleware);
 app.use(routes);
 
 // Serves images

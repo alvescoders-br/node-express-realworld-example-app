@@ -1,0 +1,15 @@
+.git
+.gitignore
+.coda
+.nx
+node_modules
+coverage
+reports
+tmp
+$null
+.env
+.env.*
+!.env.example
+harness
+docs
+dist
