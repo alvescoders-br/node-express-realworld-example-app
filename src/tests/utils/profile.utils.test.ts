@@ -58,7 +58,7 @@ describe('ProfileUtils', () => {
         image: null,
         followedBy: [
           {
-            username: 'NotRealWorld',
+            id: 456,
           },
         ],
       };

@@ -1,7 +1,11 @@
 import prismaMock from '../prisma-mock';
 import { bookmarkArticle } from '../../app/routes/article/bookmark.service';
 
-const mockedArticleResponse = {
+const articleMock = prismaMock.article as unknown as {
+  update: jest.Mock;
+};
+
+const buildArticleResponse = (overrides = {}) => ({
   id: 123,
   slug: 'How-to-train-your-dragon',
   title: 'How to train your dragon',
@@ -10,7 +14,7 @@ const mockedArticleResponse = {
   createdAt: new Date(),
   updatedAt: new Date(),
   authorId: 456,
-  tagList: [],
+  tagList: [{ name: 'dragons' }],
   favoritedBy: [],
   bookmarkedBy: [{ id: 789 }],
   author: {
@@ -22,7 +26,8 @@ const mockedArticleResponse = {
   _count: {
     bookmarkedBy: 1,
   },
-};
+  ...overrides,
+});
 
 describe('BookmarkService', () => {
   describe('bookmarkArticle', () => {
@@ -30,17 +35,20 @@ describe('BookmarkService', () => {
       // Given
       const slug = 'How-to-train-your-dragon';
       const userId = 789;
-
-      // When
-      // @ts-expect-error Prisma deep mock types recurse on article.update.
-      prismaMock.article.update.mockResolvedValue(mockedArticleResponse);
+      articleMock.update.mockResolvedValue(
+        buildArticleResponse({
+          bookmarkedBy: [{ id: 111 }, { id: userId }],
+          _count: { bookmarkedBy: 2 },
+        }),
+      );
 
       // Then
       await expect(bookmarkArticle(slug, userId)).resolves.toMatchObject({
         bookmarked: true,
-        bookmarksCount: 1,
+        bookmarksCount: 2,
+        tagList: ['dragons'],
       });
-      expect(prismaMock.article.update).toHaveBeenCalledWith(
+      expect(articleMock.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { slug },
           data: {
@@ -50,8 +58,29 @@ describe('BookmarkService', () => {
               },
             },
           },
+          include: expect.objectContaining({
+            tagList: { select: { name: true } },
+          }),
         }),
       );
+    });
+
+    test('should return false when the response is not bookmarked by the user', async () => {
+      // Given
+      const slug = 'How-to-train-your-dragon';
+      const userId = 789;
+      articleMock.update.mockResolvedValue(
+        buildArticleResponse({
+          bookmarkedBy: [{ id: 111 }],
+          _count: { bookmarkedBy: 1 },
+        }),
+      );
+
+      // Then
+      await expect(bookmarkArticle(slug, userId)).resolves.toMatchObject({
+        bookmarked: false,
+        bookmarksCount: 1,
+      });
     });
   });
 });

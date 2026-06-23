@@ -1,20 +1,34 @@
 {
   "name": "e2e",
   "$schema": "../node_modules/nx/schemas/project-schema.json",
-  "implicitDependencies": ["api"],
+  "implicitDependencies": [
+    "api"
+  ],
   "projectType": "application",
   "targets": {
     "e2e": {
-      "executor": "@nx/jest:jest",
-      "outputs": ["{workspaceRoot}/coverage/{e2eProjectRoot}"],
+      "executor": "nx:run-commands",
+      "outputs": [
+        "{workspaceRoot}/reports/playwright"
+      ],
       "options": {
-        "jestConfig": "e2e/jest.config.ts",
-        "passWithNoTests": true
+        "command": "npm run e2e:api"
       }
     },
     "lint": {
       "executor": "@nx/eslint:lint",
-      "outputs": ["{options.outputFile}"]
+      "outputs": [
+        "{options.outputFile}"
+      ]
+    },
+    "api-e2e": {
+      "executor": "nx:run-commands",
+      "outputs": [
+        "{workspaceRoot}/reports/playwright"
+      ],
+      "options": {
+        "command": "npm run e2e:api"
+      }
     }
   }
 }

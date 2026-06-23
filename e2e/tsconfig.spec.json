@@ -3,8 +3,7 @@
   "compilerOptions": {
     "outDir": "../dist/out-tsc",
     "module": "commonjs",
-    "types": ["jest", "node"]
+    "types": ["jest", "node", "@playwright/test"]
   },
-  "include": [
-    "jest.config.ts", "src/**/*.ts"]
+  "include": ["jest.config.ts", "playwright.config.ts", "src/**/*.ts"]
 }
