@@ -1,11 +1,13 @@
+export type HttpExceptionResponse = string | Record<string, unknown>;
+
 class HttpException extends Error {
   errorCode: number;
-  constructor(
-    errorCode: number,
-    public readonly message: string | any,
-  ) {
-    super(message);
+  readonly response: HttpExceptionResponse;
+
+  constructor(errorCode: number, response: HttpExceptionResponse) {
+    super(typeof response === 'string' ? response : JSON.stringify(response));
     this.errorCode = errorCode;
+    this.response = response;
   }
 }
 

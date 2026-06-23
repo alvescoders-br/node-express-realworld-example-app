@@ -6,6 +6,11 @@ import HttpException from './app/models/http-exception.model';
 
 const app = express();
 
+type UnauthorizedError = Error & { name: 'UnauthorizedError' };
+
+const isUnauthorizedError = (err: Error | HttpException): err is UnauthorizedError =>
+  err.name === 'UnauthorizedError';
+
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -18,26 +23,28 @@ app.get('/', (req: express.Request, res: express.Response) => {
   res.json({ status: 'API is running on /api' });
 });
 
-/* eslint-disable */
 app.use(
   (
     err: Error | HttpException,
-    req: express.Request,
+    _req: express.Request,
     res: express.Response,
     next: express.NextFunction,
   ) => {
-    // @ts-ignore
-    if (err && err.name === 'UnauthorizedError') {
+    void next;
+
+    if (isUnauthorizedError(err)) {
       return res.status(401).json({
         status: 'error',
         message: 'missing authorization credentials',
       });
-      // @ts-ignore
-    } else if (err && err.errorCode) {
-      // @ts-ignore
-      res.status(err.errorCode).json(err.message);
-    } else if (err) {
-      res.status(500).json(err.message);
+    }
+
+    if (err instanceof HttpException) {
+      return res.status(err.errorCode).json(err.response);
+    }
+
+    if (err) {
+      return res.status(500).json(err.message);
     }
   },
 );

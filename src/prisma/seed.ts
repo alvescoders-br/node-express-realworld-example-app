@@ -9,7 +9,8 @@ import {
 import { PrismaClient } from '@prisma/client';
 import { RegisteredUser } from '../app/routes/auth/registered-user.model';
 import { createUser } from '../app/routes/auth/auth.service';
-import { addComment, createArticle } from '../app/routes/article/article.service';
+import { createArticle } from '../app/routes/article/article.service';
+import { addComment } from '../app/routes/article/comment.service';
 
 const prisma = new PrismaClient();
 

@@ -6,6 +6,22 @@ import { RegisteredUser } from './registered-user.model';
 import generateToken from './token.utils';
 import { User } from './user.model';
 
+type CurrentUserRecord = Pick<User, 'id' | 'email' | 'username' | 'bio' | 'image'>;
+type AuthenticatedUser = Omit<RegisteredUser, 'id'>;
+
+interface LoginInput {
+  email?: string;
+  password?: string;
+}
+
+interface UpdateUserInput {
+  email?: string;
+  username?: string;
+  password?: string;
+  image?: string;
+  bio?: string;
+}
+
 const checkUserUniqueness = async (email: string, username: string) => {
   const existingUserByEmail = await prisma.user.findUnique({
     where: {
@@ -81,7 +97,7 @@ export const createUser = async (input: RegisterInput): Promise<RegisteredUser> 
   };
 };
 
-export const login = async (userPayload: any) => {
+export const login = async (userPayload: LoginInput): Promise<AuthenticatedUser> => {
   const email = userPayload.email?.trim();
   const password = userPayload.password?.trim();
 
@@ -128,7 +144,7 @@ export const login = async (userPayload: any) => {
   });
 };
 
-export const getCurrentUser = async (id: number) => {
+export const getCurrentUser = async (id: number): Promise<RegisteredUser> => {
   const user = (await prisma.user.findUnique({
     where: {
       id,
@@ -140,7 +156,7 @@ export const getCurrentUser = async (id: number) => {
       bio: true,
       image: true,
     },
-  })) as User;
+  })) as CurrentUserRecord;
 
   return {
     ...user,
@@ -148,9 +164,12 @@ export const getCurrentUser = async (id: number) => {
   };
 };
 
-export const updateUser = async (userPayload: any, id: number) => {
+export const updateUser = async (
+  userPayload: UpdateUserInput,
+  id: number,
+): Promise<RegisteredUser> => {
   const { email, username, password, image, bio } = userPayload;
-  let hashedPassword;
+  let hashedPassword: string | undefined;
 
   if (password) {
     hashedPassword = await bcrypt.hash(password, 10);

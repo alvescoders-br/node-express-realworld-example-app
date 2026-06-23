@@ -1,11 +1,16 @@
-import { User } from '../auth/user.model';
+export interface AuthorMapperInput {
+  username: string;
+  bio: string | null;
+  image: string | null;
+  followedBy: Array<{ id: number }>;
+}
 
-const authorMapper = (author: any, id?: number) => ({
+const authorMapper = (author: AuthorMapperInput, id?: number) => ({
   username: author.username,
   bio: author.bio,
   image: author.image,
   following: id
-    ? author?.followedBy.some((followingUser: Partial<User>) => followingUser.id === id)
+    ? author.followedBy.some((followingUser) => followingUser.id === id)
     : false,
 });
 

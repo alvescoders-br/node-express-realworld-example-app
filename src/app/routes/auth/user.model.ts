@@ -7,7 +7,7 @@ export interface User {
   email: string;
   password: string;
   bio: string | null;
-  image: any | null;
+  image: string | null;
   articles: Article[];
   favorites: Article[];
   followedBy: User[];

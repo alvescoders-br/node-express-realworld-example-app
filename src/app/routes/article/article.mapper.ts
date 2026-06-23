@@ -1,14 +1,26 @@
-import authorMapper from './author.mapper';
+import authorMapper, { AuthorMapperInput } from './author.mapper';
 
-const articleMapper = (article: any, id?: number) => ({
+interface ArticleMapperInput {
+  slug: string;
+  title: string;
+  description: string;
+  body: string;
+  tagList: Array<{ name: string }>;
+  createdAt: Date;
+  updatedAt: Date;
+  favoritedBy: Array<{ id: number }>;
+  author: AuthorMapperInput;
+}
+
+const articleMapper = (article: ArticleMapperInput, id?: number) => ({
   slug: article.slug,
   title: article.title,
   description: article.description,
   body: article.body,
-  tagList: article.tagList.map((tag: any) => tag.name),
+  tagList: article.tagList.map((tag) => tag.name),
   createdAt: article.createdAt,
   updatedAt: article.updatedAt,
-  favorited: article.favoritedBy.some((item: any) => item.id === id),
+  favorited: article.favoritedBy.some((item) => item.id === id),
   favoritesCount: article.favoritedBy.length,
   author: authorMapper(article.author, id),
 });
