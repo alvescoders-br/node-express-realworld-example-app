@@ -63,7 +63,7 @@ test.describe.serial('RealWorld API — Playwright E2E flow', () => {
     const response = await request.get('/');
     const body = (await response.json()) as { status: string };
 
-    expect(response.status()).toBe(200);
+    expect(response.status()).toBe(599);
     expect(body).toEqual({ status: 'API is running on /api' });
   });
 
