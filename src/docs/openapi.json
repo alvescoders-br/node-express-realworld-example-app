@@ -1,0 +1,1244 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "RealWorld Conduit API",
+    "description": "Conduit API — node-express-realworld-example-app (TypeScript 5.2 · Express 4.18 · Prisma 4.16 · PostgreSQL). Auth: `Authorization: Token <jwt>` or `Authorization: Bearer <jwt>` accepted by express-jwt HS256 helper. Error shapes vary per route and are documented without normalisation (see individual responses).",
+    "version": "1.0.0",
+    "license": {
+      "name": "MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "TokenAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT token issued on registration or login. Both `Authorization: Token <jwt>` (RealWorld convention) and `Authorization: Bearer <jwt>` (standard) are accepted via the express-jwt `getToken` helper (HS256). A missing or invalid token on a `required` route triggers an `UnauthorizedError` from express-jwt and returns HTTP 401."
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "description": "Authenticated user. Always returned inside a `{ user }` envelope.",
+        "properties": {
+          "email": { "type": "string", "format": "email" },
+          "username": { "type": "string" },
+          "bio": { "type": "string", "nullable": true },
+          "image": { "type": "string", "nullable": true },
+          "token": {
+            "type": "string",
+            "description": "Signed JWT for subsequent authenticated requests."
+          }
+        },
+        "required": ["email", "username", "token"]
+      },
+      "Profile": {
+        "type": "object",
+        "description": "User profile. Always returned inside a `{ profile }` envelope.",
+        "properties": {
+          "username": { "type": "string" },
+          "bio": { "type": "string", "nullable": true },
+          "image": { "type": "string", "nullable": true },
+          "following": {
+            "type": "boolean",
+            "description": "`true` when the authenticated user follows this profile; `false` when unauthenticated or not following."
+          }
+        },
+        "required": ["username", "following"]
+      },
+      "Author": {
+        "type": "object",
+        "description": "Embedded author object. Shape is identical to Profile (produced by `authorMapper` / `profileMapper`).",
+        "properties": {
+          "username": { "type": "string" },
+          "bio": { "type": "string", "nullable": true },
+          "image": { "type": "string", "nullable": true },
+          "following": { "type": "boolean" }
+        },
+        "required": ["username", "following"]
+      },
+      "Article": {
+        "type": "object",
+        "description": "Article as produced by `articleMapper`. Returned inside a `{ article }` or `{ articles }` envelope. Since #16, `articleMapper` also emits `bookmarked`/`bookmarksCount` (per authenticated user) on every list/feed/get/create/update response. NOTE: `POST /api/articles/{slug}/favorite` and `DELETE /api/articles/{slug}/favorite` do NOT use `articleMapper`; they use a manual spread that also leaks `id`, `authorId`, and `favoritedBy` (array) into the response, and omit `bookmarked`/`bookmarksCount` — an existing inconsistency documented here without correction.",
+        "properties": {
+          "slug": { "type": "string" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "body": { "type": "string" },
+          "tagList": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" },
+          "favorited": { "type": "boolean" },
+          "favoritesCount": { "type": "integer" },
+          "bookmarked": {
+            "type": "boolean",
+            "description": "Authenticated user's bookmark state. Present on all `articleMapper` responses (list, feed, get, create, update, bookmark); ABSENT on the manual-spread favorite endpoints."
+          },
+          "bookmarksCount": {
+            "type": "integer",
+            "description": "Total bookmarks for the article. Present on `articleMapper` responses; absent on favorite endpoints."
+          },
+          "author": { "$ref": "#/components/schemas/Author" }
+        },
+        "required": [
+          "slug", "title", "description", "body", "tagList",
+          "createdAt", "updatedAt", "favorited", "favoritesCount", "author"
+        ]
+      },
+      "BookmarkedArticle": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Article" },
+          {
+            "type": "object",
+            "description": "Article response for `POST` and `DELETE /api/articles/{slug}/bookmark`. It preserves the normal article shape and adds the authenticated user's bookmark state without leaking internal Prisma fields.",
+            "properties": {
+              "bookmarked": { "type": "boolean" },
+              "bookmarksCount": { "type": "integer" }
+            },
+            "required": ["bookmarked", "bookmarksCount"]
+          }
+        ]
+      },
+      "Comment": {
+        "type": "object",
+        "description": "Comment. Returned inside a `{ comment }` or `{ comments }` envelope.",
+        "properties": {
+          "id": { "type": "integer" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" },
+          "body": { "type": "string" },
+          "author": { "$ref": "#/components/schemas/Author" }
+        },
+        "required": ["id", "createdAt", "updatedAt", "body", "author"]
+      },
+      "UserResponse": {
+        "type": "object",
+        "properties": {
+          "user": { "$ref": "#/components/schemas/User" }
+        },
+        "required": ["user"]
+      },
+      "ProfileResponse": {
+        "type": "object",
+        "properties": {
+          "profile": { "$ref": "#/components/schemas/Profile" }
+        },
+        "required": ["profile"]
+      },
+      "ArticleResponse": {
+        "type": "object",
+        "properties": {
+          "article": { "$ref": "#/components/schemas/Article" }
+        },
+        "required": ["article"]
+      },
+      "BookmarkedArticleResponse": {
+        "type": "object",
+        "properties": {
+          "article": { "$ref": "#/components/schemas/BookmarkedArticle" }
+        },
+        "required": ["article"]
+      },
+      "MultipleArticlesResponse": {
+        "type": "object",
+        "properties": {
+          "articles": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Article" }
+          },
+          "articlesCount": {
+            "type": "integer",
+            "description": "Total count matching the current filters (before offset/limit)."
+          }
+        },
+        "required": ["articles", "articlesCount"]
+      },
+      "SingleCommentResponse": {
+        "type": "object",
+        "properties": {
+          "comment": { "$ref": "#/components/schemas/Comment" }
+        },
+        "required": ["comment"]
+      },
+      "MultipleCommentsResponse": {
+        "type": "object",
+        "properties": {
+          "comments": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Comment" }
+          }
+        },
+        "required": ["comments"]
+      },
+      "TagsResponse": {
+        "type": "object",
+        "properties": {
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "required": ["tags"]
+      },
+      "ValidationErrorResponse": {
+        "type": "object",
+        "description": "Validation or business-rule error. Used for HTTP 422 (blank / non-unique fields) and HTTP 403 on login (invalid credentials). Field names are dynamic.",
+        "properties": {
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "description": "Keys are field names; values are arrays of error messages."
+          }
+        },
+        "required": ["errors"],
+        "example": {
+          "errors": {
+            "email": ["can't be blank"],
+            "username": ["has already been taken"]
+          }
+        }
+      },
+      "UnauthorizedErrorResponse": {
+        "type": "object",
+        "description": "HTTP 401: express-jwt `UnauthorizedError` — token missing, expired, or malformed. Produced by the global error handler in `src/app.ts`.",
+        "properties": {
+          "status": { "type": "string", "enum": ["error"] },
+          "message": { "type": "string" }
+        },
+        "required": ["status", "message"],
+        "example": {
+          "status": "error",
+          "message": "missing authorization credentials"
+        }
+      },
+      "MessageErrorResponse": {
+        "type": "object",
+        "description": "HTTP 403: ownership check failed — the article or comment does not belong to the authenticated user.",
+        "properties": {
+          "message": { "type": "string" }
+        },
+        "required": ["message"],
+        "example": {
+          "message": "You are not authorized to update this article"
+        }
+      },
+      "EmptyErrorResponse": {
+        "type": "object",
+        "description": "Empty object `{}`. Used as the body for some HTTP 404 responses and `DELETE /api/articles/{slug}/comments/{id}` 200 success.",
+        "additionalProperties": false,
+        "properties": {}
+      }
+    }
+  },
+  "paths": {
+    "/api/tags": {
+      "get": {
+        "tags": ["Tags"],
+        "summary": "Get popular tags",
+        "description": "Returns popular tags. Auth optional — pass a valid token to include user-specific results.",
+        "operationId": "getTags",
+        "security": [{ "TokenAuth": [] }, {}],
+        "responses": {
+          "200": {
+            "description": "Tag list.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TagsResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid token (only triggered when a token is provided and is malformed/expired).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UnauthorizedErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/articles": {
+      "get": {
+        "tags": ["Articles"],
+        "summary": "List articles",
+        "description": "Returns paginated articles ordered by `createdAt` descending. Auth optional — authenticated users see their own articles plus demo-authored articles; unauthenticated users see only demo-authored articles.",
+        "operationId": "getArticles",
+        "security": [{ "TokenAuth": [] }, {}],
+        "parameters": [
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of articles to skip.",
+            "schema": { "type": "integer", "default": 0 }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of articles to return.",
+            "schema": { "type": "integer", "default": 10 }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "description": "Filter by tag name.",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "author",
+            "in": "query",
+            "description": "Filter by author username.",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "favorited",
+            "in": "query",
+            "description": "Filter by the username of the user who favorited the articles.",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated article list.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MultipleArticlesResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid token (only triggered when a token is provided and is malformed/expired).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UnauthorizedErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Articles"],
+        "summary": "Create article",
+        "description": "Creates a new article. Auth required.",
+        "operationId": "createArticle",
+        "security": [{ "TokenAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["article"],
+                "properties": {
+                  "article": {
+                    "type": "object",
+                    "required": ["title", "description", "body"],
+                    "properties": {
+                      "title": { "type": "string" },
+                      "description": { "type": "string" },
+                      "body": { "type": "string" },
+                      "tagList": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "description": "Optional list of tag names. Defaults to empty array when absent."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Article created.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ArticleResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — token missing or invalid.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UnauthorizedErrorResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error — `title`, `description`, or `body` blank; or `title` already taken for this user.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" },
+                "example": {
+                  "errors": { "title": ["can't be blank"] }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/articles/feed": {
+      "get": {
+        "tags": ["Articles"],
+        "summary": "Get feed",
+        "description": "Returns articles authored by users the current user follows, ordered by `createdAt` descending. Auth required.",
+        "operationId": "getFeed",
+        "security": [{ "TokenAuth": [] }],
+        "parameters": [
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": { "type": "integer", "default": 0 }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "default": 10 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feed article list.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MultipleArticlesResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — token missing or invalid.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UnauthorizedErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/articles/{slug}": {
+      "get": {
+        "tags": ["Articles"],
+        "summary": "Get article",
+        "description": "Returns a single article by slug. Auth optional.",
+        "operationId": "getArticle",
+        "security": [{ "TokenAuth": [] }, {}],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "URL-friendly article identifier derived from `slugify(title)-{authorId}`.",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Article found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ArticleResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid token (only triggered when a token is provided and is malformed/expired).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UnauthorizedErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Article not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" },
+                "example": { "errors": { "article": ["not found"] } }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Articles"],
+        "summary": "Update article",
+        "description": "Updates an existing article. Auth required. Only the article author may update. All body fields are optional (only provided fields are updated).",
+        "operationId": "updateArticle",
+        "security": [{ "TokenAuth": [] }],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["article"],
+                "properties": {
+                  "article": {
+                    "type": "object",
+                    "properties": {
+                      "title": { "type": "string" },
+                      "description": { "type": "string" },
+                      "body": { "type": "string" },
+                      "tagList": {
+                        "type": "array",
+                        "items": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Article updated.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ArticleResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UnauthorizedErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — current user is not the article author.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MessageErrorResponse" },
+                "example": { "message": "You are not authorized to update this article" }
+              }
+            }
+          },
+          "404": {
+            "description": "Article not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/EmptyErrorResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Title already taken.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" },
+                "example": { "errors": { "title": ["must be unique"] } }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Articles"],
+        "summary": "Delete article",
+        "description": "Deletes an article by slug. Auth required. Only the article author may delete.",
+        "operationId": "deleteArticle",
+        "security": [{ "TokenAuth": [] }],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Article deleted. No response body."
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UnauthorizedErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — current user is not the article author.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MessageErrorResponse" },
+                "example": { "message": "You are not authorized to delete this article" }
+              }
+            }
+          },
+          "404": {
+            "description": "Article not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/EmptyErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/articles/{slug}/comments": {
+      "get": {
+        "tags": ["Comments"],
+        "summary": "Get article comments",
+        "description": "Returns comments for an article. Auth optional — authenticated users see their own comments plus demo-author comments; unauthenticated users see only demo-author comments.",
+        "operationId": "getCommentsByArticle",
+        "security": [{ "TokenAuth": [] }, {}],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Comment list.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MultipleCommentsResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid token (only triggered when a token is provided and is malformed/expired).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UnauthorizedErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Comments"],
+        "summary": "Add comment",
+        "description": "Adds a comment to an article. Auth required.",
+        "operationId": "addComment",
+        "security": [{ "TokenAuth": [] }],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["comment"],
+                "properties": {
+                  "comment": {
+                    "type": "object",
+                    "required": ["body"],
+                    "properties": {
+                      "body": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Comment created.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SingleCommentResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UnauthorizedErrorResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error — comment body blank.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" },
+                "example": { "errors": { "body": ["can't be blank"] } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/articles/{slug}/comments/{id}": {
+      "delete": {
+        "tags": ["Comments"],
+        "summary": "Delete comment",
+        "description": "Deletes a comment. Auth required. Only the comment author may delete. NOTE: the `deleteComment` service queries by `commentId AND authorId`, so a comment not owned by the current user returns 404 (same as not found) — the 403 branch in the service is logically unreachable in the current implementation.",
+        "operationId": "deleteComment",
+        "security": [{ "TokenAuth": [] }],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Comment ID (integer, cast via `Number()`).",
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Comment deleted. Response body is an empty object `{}`.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/EmptyErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UnauthorizedErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — comment does not belong to the current user (logically unreachable in current implementation; documented for completeness).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MessageErrorResponse" },
+                "example": { "message": "You are not authorized to delete this comment" }
+              }
+            }
+          },
+          "404": {
+            "description": "Comment not found or does not belong to the current user.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/EmptyErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/articles/{slug}/favorite": {
+      "post": {
+        "tags": ["Favorites"],
+        "summary": "Favorite article",
+        "description": "Marks an article as favorite for the current user. Auth required. NOTE: this endpoint uses a manual Prisma spread instead of `articleMapper`, so the response object includes additional fields (`id`, `authorId`, `favoritedBy` array) not present on other article endpoints.",
+        "operationId": "favoriteArticle",
+        "security": [{ "TokenAuth": [] }],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Article with updated favorite state.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ArticleResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UnauthorizedErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Favorites"],
+        "summary": "Unfavorite article",
+        "description": "Removes the current user's favorite mark from an article. Auth required. NOTE: same mapper inconsistency as `POST /api/articles/{slug}/favorite` — extra fields leak into the response.",
+        "operationId": "unfavoriteArticle",
+        "security": [{ "TokenAuth": [] }],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Article with updated favorite state.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ArticleResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UnauthorizedErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/articles/{slug}/bookmark": {
+      "post": {
+        "tags": ["Bookmarks"],
+        "summary": "Bookmark article",
+        "description": "Marks an article as a personal bookmark for the authenticated user. Auth required. Mirrors the favorites relation via a new implicit M:N relation (`_UserBookmarks`).",
+        "operationId": "bookmarkArticle",
+        "security": [{ "TokenAuth": [] }],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Article with updated bookmark state.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BookmarkedArticleResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UnauthorizedErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Bookmarks"],
+        "summary": "Unbookmark article",
+        "description": "Removes the authenticated user's personal bookmark from an article. Auth required. Symmetric with `POST /api/articles/{slug}/bookmark` (uses `disconnect` on the `_UserBookmarks` relation).",
+        "operationId": "unbookmarkArticle",
+        "security": [{ "TokenAuth": [] }],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Article with updated bookmark state.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BookmarkedArticleResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UnauthorizedErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/profiles/{username}": {
+      "get": {
+        "tags": ["Profiles"],
+        "summary": "Get profile",
+        "description": "Returns a user's public profile. Auth optional — `following` reflects the current user's follow state when authenticated.",
+        "operationId": "getProfile",
+        "security": [{ "TokenAuth": [] }, {}],
+        "parameters": [
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Profile found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProfileResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid token (only triggered when a token is provided and is malformed/expired).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UnauthorizedErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/EmptyErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/profiles/{username}/follow": {
+      "post": {
+        "tags": ["Profiles"],
+        "summary": "Follow user",
+        "description": "Follows a user. Auth required.",
+        "operationId": "followUser",
+        "security": [{ "TokenAuth": [] }],
+        "parameters": [
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Profile with `following: true`.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProfileResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UnauthorizedErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Profiles"],
+        "summary": "Unfollow user",
+        "description": "Unfollows a user. Auth required.",
+        "operationId": "unfollowUser",
+        "security": [{ "TokenAuth": [] }],
+        "parameters": [
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Profile with `following: false`.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProfileResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UnauthorizedErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Register",
+        "description": "Creates a new user account and returns a JWT token. Auth none.",
+        "operationId": "createUser",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["user"],
+                "properties": {
+                  "user": {
+                    "type": "object",
+                    "required": ["email", "username", "password"],
+                    "properties": {
+                      "email": { "type": "string", "format": "email" },
+                      "username": { "type": "string" },
+                      "password": { "type": "string", "format": "password" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User registered.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error — blank fields or already-taken email/username.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" },
+                "example": {
+                  "errors": {
+                    "email": ["has already been taken"],
+                    "username": ["has already been taken"]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Login",
+        "description": "Authenticates a user and returns a JWT token. Auth none.",
+        "operationId": "login",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["user"],
+                "properties": {
+                  "user": {
+                    "type": "object",
+                    "required": ["email", "password"],
+                    "properties": {
+                      "email": { "type": "string", "format": "email" },
+                      "password": { "type": "string", "format": "password" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Invalid credentials. The error key is literally `\"email or password\"` (with space).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" },
+                "example": {
+                  "errors": {
+                    "email or password": ["is invalid"]
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Login rate limit exceeded.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the login attempt may be retried.",
+                "schema": { "type": "integer", "minimum": 0 }
+              },
+              "RateLimit-Limit": {
+                "description": "Maximum login attempts allowed during the current rate-limit window.",
+                "schema": { "type": "integer", "minimum": 1 }
+              },
+              "RateLimit-Remaining": {
+                "description": "Remaining login attempts in the current rate-limit window.",
+                "schema": { "type": "integer", "minimum": 0 }
+              },
+              "RateLimit-Reset": {
+                "description": "Seconds until the login rate-limit window resets.",
+                "schema": { "type": "integer", "minimum": 0 }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" },
+                "example": {
+                  "errors": { "login": ["rate limit exceeded"] }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error — blank email or password.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" },
+                "example": {
+                  "errors": { "email": ["can't be blank"] }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/user": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Get current user",
+        "description": "Returns the currently authenticated user. Auth required.",
+        "operationId": "getCurrentUser",
+        "security": [{ "TokenAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Current user.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UnauthorizedErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Auth"],
+        "summary": "Update current user",
+        "description": "Updates the currently authenticated user. Auth required. All fields are optional; only provided fields are updated.",
+        "operationId": "updateUser",
+        "security": [{ "TokenAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["user"],
+                "properties": {
+                  "user": {
+                    "type": "object",
+                    "properties": {
+                      "email": { "type": "string", "format": "email" },
+                      "username": { "type": "string" },
+                      "password": { "type": "string", "format": "password" },
+                      "image": { "type": "string", "nullable": true },
+                      "bio": { "type": "string", "nullable": true }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UnauthorizedErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    { "name": "Auth", "description": "User registration, login, and account management." },
+    { "name": "Articles", "description": "CRUD operations for articles." },
+    { "name": "Comments", "description": "Comments on articles." },
+    { "name": "Favorites", "description": "Article favorites." },
+    { "name": "Bookmarks", "description": "Personal article bookmarks." },
+    { "name": "Profiles", "description": "User profiles and follow/unfollow." },
+    { "name": "Tags", "description": "Article tags." }
+  ]
+}

@@ -1,5 +1,5 @@
-// Contract tests — Phase 2 slice 3, issue #6
-// Asserts the live API against harness/docs/api/openapi.json (20 operations).
+// Contract tests — Phase 2 slice 3, issue #6 (spec versioned in-repo: #17)
+// Asserts the live API against src/docs/openapi.json (21 operations).
 // No real database required; no OpenAPI/Swagger validator dependencies.
 // Scope: route existence, auth-per-route, 401/422 structural error shapes.
 // Do NOT normalise the documented inconsistencies (see openapi.json notes).
@@ -51,7 +51,7 @@ import app from '../../app';
 
 const spec = JSON.parse(
   fs.readFileSync(
-    path.resolve(__dirname, '../../../harness/docs/api/openapi.json'),
+    path.resolve(__dirname, '../../docs/openapi.json'),
     'utf8',
   ),
 ) as {
@@ -75,8 +75,8 @@ describe('Contract — OpenAPI spec sanity', () => {
     expect(spec.openapi).toBe('3.0.3');
   });
 
-  it('spec has exactly 20 operations', () => {
-    expect(countOperations(spec)).toBe(20);
+  it('spec has exactly 21 operations', () => {
+    expect(countOperations(spec)).toBe(21);
   });
 });
 
@@ -98,6 +98,7 @@ const AUTH_REQUIRED_ROUTES = [
   { id: 'favoriteArticle',   method: 'post',   url: '/api/articles/x/favorite' },
   { id: 'unfavoriteArticle', method: 'delete', url: '/api/articles/x/favorite' },
   { id: 'bookmarkArticle',   method: 'post',   url: '/api/articles/x/bookmark' },
+  { id: 'unbookmarkArticle', method: 'delete', url: '/api/articles/x/bookmark' },
   { id: 'followUser',        method: 'post',   url: '/api/profiles/x/follow' },
   { id: 'unfollowUser',      method: 'delete', url: '/api/profiles/x/follow' },
   { id: 'getCurrentUser',    method: 'get',    url: '/api/user' },
@@ -201,15 +202,15 @@ describe('Contract — auth.none: 422 ValidationErrorResponse on blank fields', 
 // ---------------------------------------------------------------------------
 
 describe('Contract — regression guard: route table sizes vs spec', () => {
-  it('auth.required table has 13 entries', () => {
-    expect(AUTH_REQUIRED_ROUTES).toHaveLength(13);
+  it('auth.required table has 14 entries', () => {
+    expect(AUTH_REQUIRED_ROUTES).toHaveLength(14);
   });
 
   it('auth.optional table has 5 entries', () => {
     expect(AUTH_OPTIONAL_ROUTES).toHaveLength(5);
   });
 
-  it('13 (required) + 5 (optional) + 2 (none) = 20 spec operations', () => {
+  it('14 (required) + 5 (optional) + 2 (none) = 21 spec operations', () => {
     expect(AUTH_REQUIRED_ROUTES.length + AUTH_OPTIONAL_ROUTES.length + 2).toBe(
       countOperations(spec),
     );
