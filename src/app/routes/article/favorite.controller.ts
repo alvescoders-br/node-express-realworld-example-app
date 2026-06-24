@@ -1,6 +1,7 @@
 import { Request, Response, Router } from 'express';
 import auth from '../auth/auth';
 import { asyncHandler } from '../async-handler';
+import { requireUserId } from '../auth/current-user.utils';
 import { favoriteArticle, unfavoriteArticle } from './favorite.service';
 
 const router = Router();
@@ -16,7 +17,7 @@ router.post(
   '/articles/:slug/favorite',
   auth.required,
   asyncHandler(async (req: Request, res: Response) => {
-    const article = await favoriteArticle(req.params.slug, req.auth?.user?.id);
+    const article = await favoriteArticle(req.params.slug, requireUserId(req));
     res.json({ article });
   }),
 );
@@ -32,7 +33,7 @@ router.delete(
   '/articles/:slug/favorite',
   auth.required,
   asyncHandler(async (req: Request, res: Response) => {
-    const article = await unfavoriteArticle(req.params.slug, req.auth?.user?.id);
+    const article = await unfavoriteArticle(req.params.slug, requireUserId(req));
     res.json({ article });
   }),
 );

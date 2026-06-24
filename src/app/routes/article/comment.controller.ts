@@ -1,6 +1,7 @@
 import { Request, Response, Router } from 'express';
 import auth from '../auth/auth';
 import { asyncHandler } from '../async-handler';
+import { requireUserId } from '../auth/current-user.utils';
 import { addComment, deleteComment, getCommentsByArticle } from './comment.service';
 
 const router = Router();
@@ -33,7 +34,7 @@ router.post(
   '/articles/:slug/comments',
   auth.required,
   asyncHandler(async (req: Request, res: Response) => {
-    const comment = await addComment(req.body.comment.body, req.params.slug, req.auth?.user?.id);
+    const comment = await addComment(req.body.comment.body, req.params.slug, requireUserId(req));
     res.json({ comment });
   }),
 );
@@ -49,7 +50,7 @@ router.delete(
   '/articles/:slug/comments/:id',
   auth.required,
   asyncHandler(async (req: Request, res: Response) => {
-    await deleteComment(Number(req.params.id), req.auth?.user?.id);
+    await deleteComment(Number(req.params.id), requireUserId(req));
     res.status(200).json({});
   }),
 );

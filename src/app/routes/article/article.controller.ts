@@ -1,6 +1,7 @@
 import { Request, Response, Router } from 'express';
 import auth from '../auth/auth';
 import { asyncHandler } from '../async-handler';
+import { requireUserId } from '../auth/current-user.utils';
 import {
   createArticle,
   deleteArticle,
@@ -45,7 +46,7 @@ router.get(
     const result = await getFeed(
       Number(req.query.offset),
       Number(req.query.limit),
-      req.auth?.user?.id,
+      requireUserId(req),
     );
     res.json(result);
   }),
@@ -64,7 +65,7 @@ router.post(
   '/articles',
   auth.required,
   asyncHandler(async (req: Request, res: Response) => {
-    const article = await createArticle(req.body.article, req.auth?.user?.id);
+    const article = await createArticle(req.body.article, requireUserId(req));
     res.status(201).json({ article });
   }),
 );
@@ -99,7 +100,7 @@ router.put(
   '/articles/:slug',
   auth.required,
   asyncHandler(async (req: Request, res: Response) => {
-    const article = await updateArticle(req.body.article, req.params.slug, req.auth?.user?.id);
+    const article = await updateArticle(req.body.article, req.params.slug, requireUserId(req));
     res.json({ article });
   }),
 );
@@ -114,7 +115,7 @@ router.delete(
   '/articles/:slug',
   auth.required,
   asyncHandler(async (req: Request, res: Response) => {
-    await deleteArticle(req.params.slug, req.auth?.user!.id);
+    await deleteArticle(req.params.slug, requireUserId(req));
     res.sendStatus(204);
   }),
 );

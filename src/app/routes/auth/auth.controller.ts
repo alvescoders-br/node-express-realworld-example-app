@@ -1,6 +1,7 @@
 import { Request, Response, Router } from 'express';
 import auth from './auth';
 import { asyncHandler } from '../async-handler';
+import { requireUserId } from './current-user.utils';
 import { createUser, getCurrentUser, login, updateUser } from './auth.service';
 import { loginRateLimiter } from './login-rate-limit.middleware';
 
@@ -47,7 +48,7 @@ router.get(
   '/user',
   auth.required,
   asyncHandler(async (req: Request, res: Response) => {
-    const user = await getCurrentUser(req.auth?.user?.id);
+    const user = await getCurrentUser(requireUserId(req));
     res.json({ user });
   }),
 );
@@ -63,7 +64,7 @@ router.put(
   '/user',
   auth.required,
   asyncHandler(async (req: Request, res: Response) => {
-    const user = await updateUser(req.body.user, req.auth?.user?.id);
+    const user = await updateUser(req.body.user, requireUserId(req));
     res.json({ user });
   }),
 );

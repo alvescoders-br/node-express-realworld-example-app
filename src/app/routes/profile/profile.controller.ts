@@ -1,6 +1,7 @@
 import { Request, Response, Router } from 'express';
 import auth from '../auth/auth';
 import { asyncHandler } from '../async-handler';
+import { requireUserId } from '../auth/current-user.utils';
 import { followUser, getProfile, unfollowUser } from './profile.service';
 
 const router = Router();
@@ -32,7 +33,7 @@ router.post(
   '/profiles/:username/follow',
   auth.required,
   asyncHandler(async (req: Request, res: Response) => {
-    const profile = await followUser(req.params?.username, req.auth?.user?.id);
+    const profile = await followUser(req.params?.username, requireUserId(req));
     res.json({ profile });
   }),
 );
@@ -48,7 +49,7 @@ router.delete(
   '/profiles/:username/follow',
   auth.required,
   asyncHandler(async (req: Request, res: Response) => {
-    const profile = await unfollowUser(req.params.username, req.auth?.user?.id);
+    const profile = await unfollowUser(req.params.username, requireUserId(req));
     res.json({ profile });
   }),
 );
