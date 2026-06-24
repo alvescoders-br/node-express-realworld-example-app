@@ -110,6 +110,7 @@ export const getArticles = async (query: ArticleListQuery, id?: number) => {
         },
       },
       favoritedBy: true,
+      bookmarkedBy: true,
       _count: {
         select: {
           favoritedBy: true,
@@ -159,6 +160,7 @@ export const getFeed = async (offset: number, limit: number, id: number) => {
         },
       },
       favoritedBy: true,
+      bookmarkedBy: true,
       _count: {
         select: {
           favoritedBy: true,
@@ -237,6 +239,7 @@ export const createArticle = async (article: ArticlePayload, id: number) => {
         },
       },
       favoritedBy: true,
+      bookmarkedBy: true,
       _count: {
         select: {
           favoritedBy: true,
@@ -268,6 +271,7 @@ export const getArticle = async (slug: string, id?: number) => {
         },
       },
       favoritedBy: true,
+      bookmarkedBy: true,
       _count: {
         select: {
           favoritedBy: true,
@@ -299,7 +303,7 @@ const disconnectArticlesTags = async (slug: string) => {
 export const updateArticle = async (article: ArticlePayload, slug: string, id: number) => {
   let newSlug: string | null = null;
 
-  const existingArticle = await await prisma.article.findFirst({
+  const existingArticle = await prisma.article.findFirst({
     where: {
       slug,
     },
@@ -381,6 +385,7 @@ export const updateArticle = async (article: ArticlePayload, slug: string, id: n
         },
       },
       favoritedBy: true,
+      bookmarkedBy: true,
       _count: {
         select: {
           favoritedBy: true,
@@ -393,7 +398,7 @@ export const updateArticle = async (article: ArticlePayload, slug: string, id: n
 };
 
 export const deleteArticle = async (slug: string, id: number) => {
-  const existingArticle = await await prisma.article.findFirst({
+  const existingArticle = await prisma.article.findFirst({
     where: {
       slug,
     },

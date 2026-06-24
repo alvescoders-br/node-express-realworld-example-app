@@ -1,7 +1,8 @@
 import { Request, Response, Router } from 'express';
 import auth from '../auth/auth';
 import { asyncHandler } from '../async-handler';
-import { bookmarkArticle } from './bookmark.service';
+import { requireUserId } from '../auth/current-user.utils';
+import { bookmarkArticle, unbookmarkArticle } from './bookmark.service';
 
 const router = Router();
 
@@ -16,7 +17,23 @@ router.post(
   '/articles/:slug/bookmark',
   auth.required,
   asyncHandler(async (req: Request, res: Response) => {
-    const article = await bookmarkArticle(req.params.slug, req.auth?.user?.id);
+    const article = await bookmarkArticle(req.params.slug, requireUserId(req));
+    res.json({ article });
+  }),
+);
+
+/**
+ * Unbookmark article
+ * @auth required
+ * @route {DELETE} /articles/:slug/bookmark
+ * @param slug slug of the article (based on the title)
+ * @returns article unbookmarked article
+ */
+router.delete(
+  '/articles/:slug/bookmark',
+  auth.required,
+  asyncHandler(async (req: Request, res: Response) => {
+    const article = await unbookmarkArticle(req.params.slug, requireUserId(req));
     res.json({ article });
   }),
 );

@@ -9,6 +9,7 @@ interface ArticleMapperInput {
   createdAt: Date;
   updatedAt: Date;
   favoritedBy: Array<{ id: number }>;
+  bookmarkedBy?: Array<{ id: number }>;
   author: AuthorMapperInput;
 }
 
@@ -22,6 +23,8 @@ const articleMapper = (article: ArticleMapperInput, id?: number) => ({
   updatedAt: article.updatedAt,
   favorited: article.favoritedBy.some((item) => item.id === id),
   favoritesCount: article.favoritedBy.length,
+  bookmarked: (article.bookmarkedBy ?? []).some((item) => item.id === id),
+  bookmarksCount: (article.bookmarkedBy ?? []).length,
   author: authorMapper(article.author, id),
 });
 

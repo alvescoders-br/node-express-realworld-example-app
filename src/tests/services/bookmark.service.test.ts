@@ -1,5 +1,5 @@
 import prismaMock from '../prisma-mock';
-import { bookmarkArticle } from '../../app/routes/article/bookmark.service';
+import { bookmarkArticle, unbookmarkArticle } from '../../app/routes/article/bookmark.service';
 
 const articleMock = prismaMock.article as unknown as {
   update: jest.Mock;
@@ -81,6 +81,42 @@ describe('BookmarkService', () => {
         bookmarked: false,
         bookmarksCount: 1,
       });
+    });
+  });
+
+  describe('unbookmarkArticle', () => {
+    test('should disconnect the user and return bookmarked=false', async () => {
+      // Given
+      const slug = 'How-to-train-your-dragon';
+      const userId = 789;
+      articleMock.update.mockResolvedValue(
+        buildArticleResponse({
+          bookmarkedBy: [{ id: 111 }],
+          _count: { bookmarkedBy: 1 },
+        }),
+      );
+
+      // Then
+      await expect(unbookmarkArticle(slug, userId)).resolves.toMatchObject({
+        bookmarked: false,
+        bookmarksCount: 1,
+        tagList: ['dragons'],
+      });
+      expect(articleMock.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { slug },
+          data: {
+            bookmarkedBy: {
+              disconnect: {
+                id: userId,
+              },
+            },
+          },
+          include: expect.objectContaining({
+            tagList: { select: { name: true } },
+          }),
+        }),
+      );
     });
   });
 });

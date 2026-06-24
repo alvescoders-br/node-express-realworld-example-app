@@ -428,8 +428,8 @@ describe('Integration — favorites flow (documented spread inconsistency)', () 
 });
 
 // ===========================================================================
-// 6. Bookmarks flow — POST-only scope approved for this slice.  DELETE
-//    /bookmark remains intentionally unimplemented until separately approved.
+// 6. Bookmarks flow — POST + DELETE (#16).  bookmarked state is mirrored into
+//    article reads via articleMapper and is per-authenticated-user.
 // ===========================================================================
 
 describe('Integration — bookmarks flow', () => {
@@ -451,6 +451,53 @@ describe('Integration — bookmarks flow', () => {
     expect(article.id).toBeUndefined();
     expect(article.authorId).toBeUndefined();
     expect(article.bookmarkedBy).toBeUndefined();
+  });
+
+  it('GET /api/articles/:slug — bob (bookmarker) → article.bookmarked: true (reflected in reads)', async () => {
+    const res = await request(app)
+      .get(`/api/articles/${slugA}`)
+      .set(authHeader(tokenB));
+
+    expect(res.status).toBe(200);
+    const { article } = res.body;
+    expect(article.slug).toBe(slugA);
+    expect(article.bookmarked).toBe(true);
+    expect(article.bookmarksCount).toBeGreaterThanOrEqual(1);
+    // bookmark state must not leak the internal relation array
+    expect(article.bookmarkedBy).toBeUndefined();
+  });
+
+  it('GET /api/articles/:slug — alice (non-bookmarker) → article.bookmarked: false (per-user)', async () => {
+    const res = await request(app)
+      .get(`/api/articles/${slugA}`)
+      .set(authHeader(tokenA));
+
+    expect(res.status).toBe(200);
+    expect(res.body.article.bookmarked).toBe(false);
+  });
+
+  it("DELETE /api/articles/:slug/bookmark — bob unbookmarks → 200 { article: { bookmarked: false } }", async () => {
+    const res = await request(app)
+      .delete(`/api/articles/${slugA}/bookmark`)
+      .set(authHeader(tokenB));
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('article');
+    const { article } = res.body;
+    expect(article.slug).toBe(slugA);
+    expect(article.bookmarked).toBe(false);
+    expect(article.id).toBeUndefined();
+    expect(article.authorId).toBeUndefined();
+    expect(article.bookmarkedBy).toBeUndefined();
+  });
+
+  it('GET /api/articles/:slug — bob after unbookmark → article.bookmarked: false', async () => {
+    const res = await request(app)
+      .get(`/api/articles/${slugA}`)
+      .set(authHeader(tokenB));
+
+    expect(res.status).toBe(200);
+    expect(res.body.article.bookmarked).toBe(false);
   });
 });
 
