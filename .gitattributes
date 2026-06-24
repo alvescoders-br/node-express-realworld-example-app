@@ -1,0 +1,4 @@
+# Keep shell hooks/scripts LF so their shebang works on Linux/macOS regardless
+# of a contributor's core.autocrlf setting.
+.githooks/** text eol=lf
+*.sh text eol=lf
