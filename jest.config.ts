@@ -22,4 +22,9 @@ export default {
     '<rootDir>/src/**/__tests__/**/*.[jt]s?(x)',
     '<rootDir>/src/**/*(*.)@(spec|test).[jt]s?(x)',
   ],
+  // Integration tests have their own config (jest.config.integration.ts) with
+  // setupFiles that inject the test DATABASE_URL and LOGIN_RATE_LIMIT_MAX. Running
+  // them under this default config (no setupFiles) makes the 429 assertion read the
+  // default limit and fail. Run them via the `integration-test` target instead.
+  testPathIgnorePatterns: ['<rootDir>/src/tests/integration/'],
 };
