@@ -4,13 +4,16 @@ export default {
   preset: './jest.preset.js',
   testEnvironment: 'node',
   transform: {
-    '^.+\\.[tj]s$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
+    '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
+  // #20: Node >= 24 removed SlowBuffer.prototype.equal, but jsonwebtoken's
+  // transitive jwa dependency still loads it. Keep the local test runner
+  // aligned with the Playwright shim so the default Jest gate stays green.
+  setupFiles: ['<rootDir>/src/tests/slow-buffer-shim.ts'],
   // reportPath in harness-manifest.json is relative to REPO_ROOT (harness/).
   // coverage-check.py resolves: harness/ + "coverage/api/lcov.info".
   coverageDirectory: './harness/coverage/api',
-  coverageReporters: ['lcov', 'text'],
   // Collect coverage from the app files directly exercised by the contract tests:
   // the Express app entry point and the auth middleware (the two contract surfaces).
   collectCoverageFrom: [

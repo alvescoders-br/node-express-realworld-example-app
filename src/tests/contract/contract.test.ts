@@ -14,13 +14,19 @@ jest.mock('express-jwt', () => ({
   expressjwt:
     (opts: {
       credentialsRequired?: boolean;
-      getToken?: (req: any) => string | null;
+      getToken?: (req: {
+        headers: { authorization?: string };
+      }) => string | null;
     }) =>
-    (req: any, _res: any, next: (err?: any) => void) => {
+    (
+      req: { headers: { authorization?: string } },
+      _res: unknown,
+      next: (err?: Error) => void
+    ) => {
       const required = opts.credentialsRequired !== false;
       const token = opts.getToken ? opts.getToken(req) : null;
       if (!token && required) {
-        const err: any = new Error('missing authorization credentials');
+        const err = new Error('missing authorization credentials');
         err.name = 'UnauthorizedError';
         return next(err);
       }
@@ -45,15 +51,30 @@ import prismaMock from '../prisma-mock';
 
 import app from '../../app';
 
+type RequestMethod = 'delete' | 'get' | 'post' | 'put';
+const prismaTestMock = prismaMock as unknown as {
+  article: {
+    count: jest.Mock;
+    findMany: jest.Mock;
+    findUnique: jest.Mock;
+  };
+  tag: {
+    findMany: jest.Mock;
+  };
+  user: {
+    findUnique: jest.Mock;
+  };
+};
+
+const callApi = (method: RequestMethod, url: string) =>
+  request(app)[method](url);
+
 // ---------------------------------------------------------------------------
 // Contract fixture
 // ---------------------------------------------------------------------------
 
 const spec = JSON.parse(
-  fs.readFileSync(
-    path.resolve(__dirname, '../../docs/openapi.json'),
-    'utf8',
-  ),
+  fs.readFileSync(path.resolve(__dirname, '../../docs/openapi.json'), 'utf8')
 ) as {
   openapi: string;
   paths: Record<string, Record<string, { operationId: string }>>;
@@ -62,7 +83,7 @@ const spec = JSON.parse(
 function countOperations(s: typeof spec): number {
   return Object.values(s.paths).reduce(
     (n, methods) => n + Object.keys(methods).length,
-    0,
+    0
   );
 }
 
@@ -89,34 +110,42 @@ describe('Contract — OpenAPI spec sanity', () => {
 // ---------------------------------------------------------------------------
 
 const AUTH_REQUIRED_ROUTES = [
-  { id: 'createArticle',     method: 'post',   url: '/api/articles' },
-  { id: 'getFeed',           method: 'get',    url: '/api/articles/feed' },
-  { id: 'updateArticle',     method: 'put',    url: '/api/articles/x' },
-  { id: 'deleteArticle',     method: 'delete', url: '/api/articles/x' },
-  { id: 'addComment',        method: 'post',   url: '/api/articles/x/comments' },
-  { id: 'deleteComment',     method: 'delete', url: '/api/articles/x/comments/1' },
-  { id: 'favoriteArticle',   method: 'post',   url: '/api/articles/x/favorite' },
-  { id: 'unfavoriteArticle', method: 'delete', url: '/api/articles/x/favorite' },
-  { id: 'bookmarkArticle',   method: 'post',   url: '/api/articles/x/bookmark' },
-  { id: 'unbookmarkArticle', method: 'delete', url: '/api/articles/x/bookmark' },
-  { id: 'followUser',        method: 'post',   url: '/api/profiles/x/follow' },
-  { id: 'unfollowUser',      method: 'delete', url: '/api/profiles/x/follow' },
-  { id: 'getCurrentUser',    method: 'get',    url: '/api/user' },
-  { id: 'updateUser',        method: 'put',    url: '/api/user' },
+  { id: 'createArticle', method: 'post', url: '/api/articles' },
+  { id: 'getFeed', method: 'get', url: '/api/articles/feed' },
+  { id: 'updateArticle', method: 'put', url: '/api/articles/x' },
+  { id: 'deleteArticle', method: 'delete', url: '/api/articles/x' },
+  { id: 'addComment', method: 'post', url: '/api/articles/x/comments' },
+  { id: 'deleteComment', method: 'delete', url: '/api/articles/x/comments/1' },
+  { id: 'favoriteArticle', method: 'post', url: '/api/articles/x/favorite' },
+  {
+    id: 'unfavoriteArticle',
+    method: 'delete',
+    url: '/api/articles/x/favorite',
+  },
+  { id: 'bookmarkArticle', method: 'post', url: '/api/articles/x/bookmark' },
+  {
+    id: 'unbookmarkArticle',
+    method: 'delete',
+    url: '/api/articles/x/bookmark',
+  },
+  { id: 'followUser', method: 'post', url: '/api/profiles/x/follow' },
+  { id: 'unfollowUser', method: 'delete', url: '/api/profiles/x/follow' },
+  { id: 'getCurrentUser', method: 'get', url: '/api/user' },
+  { id: 'updateUser', method: 'put', url: '/api/user' },
 ] as const;
 
 describe('Contract — auth.required: 401 without token', () => {
   test.each(AUTH_REQUIRED_ROUTES)(
     '$method $url ($id)',
     async ({ method, url }) => {
-      const res = await (request(app) as any)[method](url);
+      const res = await callApi(method, url);
       expect(res.status).toBe(401);
       // UnauthorizedError envelope produced by src/app.ts global error handler
       expect(res.body).toEqual({
         status: 'error',
         message: 'missing authorization credentials',
       });
-    },
+    }
   );
 });
 
@@ -128,35 +157,34 @@ describe('Contract — auth.required: 401 without token', () => {
 // ---------------------------------------------------------------------------
 
 const AUTH_OPTIONAL_ROUTES = [
-  { id: 'getTags',              method: 'get', url: '/api/tags' },
-  { id: 'getArticles',          method: 'get', url: '/api/articles' },
-  { id: 'getArticle',           method: 'get', url: '/api/articles/x' },
-  { id: 'getCommentsByArticle', method: 'get', url: '/api/articles/x/comments' },
-  { id: 'getProfile',           method: 'get', url: '/api/profiles/x' },
+  { id: 'getTags', method: 'get', url: '/api/tags' },
+  { id: 'getArticles', method: 'get', url: '/api/articles' },
+  { id: 'getArticle', method: 'get', url: '/api/articles/x' },
+  {
+    id: 'getCommentsByArticle',
+    method: 'get',
+    url: '/api/articles/x/comments',
+  },
+  { id: 'getProfile', method: 'get', url: '/api/profiles/x' },
 ] as const;
 
 describe('Contract — auth.optional: route exists, no 401 without token', () => {
   beforeEach(() => {
     // prisma-mock.ts resets all mocks before each test (global beforeEach).
     // These overrides run after the reset, within this describe's scope.
-    // @ts-ignore
-    prismaMock.tag.findMany.mockResolvedValue([]);
-    // @ts-ignore
-    prismaMock.article.count.mockResolvedValue(0);
-    // @ts-ignore
-    prismaMock.article.findMany.mockResolvedValue([]);
+    prismaTestMock.tag.findMany.mockResolvedValue([]);
+    prismaTestMock.article.count.mockResolvedValue(0);
+    prismaTestMock.article.findMany.mockResolvedValue([]);
     // null → service-level "not found" responses (JSON 404/500).
     // Distinguishable from Express text/html 404 via Content-Type header.
-    // @ts-ignore
-    prismaMock.article.findUnique.mockResolvedValue(null);
-    // @ts-ignore
-    prismaMock.user.findUnique.mockResolvedValue(null);
+    prismaTestMock.article.findUnique.mockResolvedValue(null);
+    prismaTestMock.user.findUnique.mockResolvedValue(null);
   });
 
   test.each(AUTH_OPTIONAL_ROUTES)(
     '$method $url ($id) — no token → NOT 401, JSON content-type',
     async ({ method, url }) => {
-      const res = await (request(app) as any)[method](url);
+      const res = await callApi(method, url);
 
       // Auth is optional — unauthenticated requests must not be rejected.
       expect(res.status).not.toBe(401);
@@ -164,7 +192,7 @@ describe('Contract — auth.optional: route exists, no 401 without token', () =>
       // All app error/success responses use res.json() → application/json.
       // Express "Cannot METHOD /path" route-not-found returns text/html.
       expect(res.headers['content-type']).toMatch(/application\/json/i);
-    },
+    }
   );
 });
 
@@ -212,7 +240,7 @@ describe('Contract — regression guard: route table sizes vs spec', () => {
 
   it('14 (required) + 5 (optional) + 2 (none) = 21 spec operations', () => {
     expect(AUTH_REQUIRED_ROUTES.length + AUTH_OPTIONAL_ROUTES.length + 2).toBe(
-      countOperations(spec),
+      countOperations(spec)
     );
   });
 });

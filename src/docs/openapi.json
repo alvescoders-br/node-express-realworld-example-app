@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "RealWorld Conduit API",
-    "description": "Conduit API — node-express-realworld-example-app (TypeScript 5.2 · Express 4.18 · Prisma 4.16 · PostgreSQL). Auth: `Authorization: Token <jwt>` or `Authorization: Bearer <jwt>` accepted by express-jwt HS256 helper. Error shapes vary per route and are documented without normalisation (see individual responses).",
+    "description": "Conduit API — node-express-realworld-example-app (TypeScript 5.2 · Express 5.2 · Prisma 4.16 · PostgreSQL). Auth: `Authorization: Token <jwt>` or `Authorization: Bearer <jwt>` accepted by express-jwt HS256 helper. Error shapes vary per route and are documented without normalisation (see individual responses).",
     "version": "1.0.0",
     "license": {
       "name": "MIT"

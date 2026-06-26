@@ -4,6 +4,18 @@
 
 > ### Example Node (Express + Prisma) codebase containing real world examples (CRUD, auth, advanced patterns, etc) that adheres to the [RealWorld](https://github.com/gothinkster/realworld-example-apps) API spec.
 
+## Current stack
+
+- TypeScript 5.2 with strict app builds.
+- Express 5.2, Prisma 4/PostgreSQL, Nx, Jest, Supertest, Playwright, and StrykerJS.
+- Docker Compose for the API, PostgreSQL, Loki, Grafana, Tempo, and Mimir.
+- OpenAPI contract in `src/docs/openapi.json`.
+
+Governance note for audit fix `#20`: all new repository changes must be tracked
+by a GitHub Issue before work starts and every commit must reference that issue.
+The versioned `.githooks/commit-msg` hook enforces the `#<id>` reference when
+`git config core.hooksPath .githooks` is active.
+
 <a href="https://thinkster.io/tutorials/node-json-api" target="_blank"><img width="454" src="https://raw.githubusercontent.com/gothinkster/realworld/master/media/learn-btn-hr.png" /></a>
 
 ## Getting Started
@@ -54,6 +66,40 @@ Run the following command to run the project:
 npx nx serve api
 ```
 
+### Test and quality gates
+
+```shell
+npx nx build api --skip-nx-cache
+npx nx test api --runInBand --skip-nx-cache
+npx nx run api:integration-test --skip-nx-cache
+npm run e2e:api
+npm run mutation
+```
+
+The integration and Playwright gates require Docker because they start a
+PostgreSQL test container. The mutation gate is configured to fail below a 95%
+mutation score.
+
+### Docker and observability validation
+
+Run the local operations stack:
+
+```shell
+docker compose up --build
+```
+
+Validate startup/shutdown logs, per-endpoint request counters, and traces:
+
+```shell
+python scripts/validate-stack.py --compose-file docker-compose.yml --timeout 120
+```
+
+If host port `3000` is already in use, choose another host port for the API:
+
+```shell
+API_PORT=3010 API_BASE_URL=http://127.0.0.1:3010 python scripts/validate-stack.py --compose-file docker-compose.yml --timeout 120
+```
+
 ### Seed the database
 
 The project includes a seed script to populate the database:
@@ -65,6 +111,7 @@ npx prisma db seed
 ## Deploy on a remote server
 
 Run the following command to:
+
 - install dependencies
 - apply any new migration sql scripts
 - run the server

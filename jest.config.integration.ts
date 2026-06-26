@@ -9,7 +9,7 @@ export default {
   preset: './jest.preset.js',
   testEnvironment: 'node',
   transform: {
-    '^.+\\.[tj]s$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
+    '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   // Starts Postgres container + applies migrations BEFORE workers spawn.
@@ -18,11 +18,13 @@ export default {
   globalTeardown: '<rootDir>/src/tests/integration/globalTeardown.js',
   // Injects DATABASE_URL and JWT_SECRET into process.env BEFORE any module loads,
   // ensuring PrismaClient singleton reads the test DB URL at instantiation time.
-  setupFiles: ['<rootDir>/src/tests/integration/setupFiles.ts'],
+  setupFiles: [
+    '<rootDir>/src/tests/slow-buffer-shim.ts',
+    '<rootDir>/src/tests/integration/setupFiles.ts',
+  ],
   // Coverage output to the same path as the main config; integration run
   // overwrites lcov.info with comprehensive source coverage.
   coverageDirectory: './harness/coverage/api',
-  coverageReporters: ['lcov', 'text'],
   // Broader collectCoverageFrom than the contract-tests config: integration tests
   // exercise all controllers, services, mappers, and auth middleware.
   collectCoverageFrom: [

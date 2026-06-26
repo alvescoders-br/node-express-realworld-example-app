@@ -2,7 +2,12 @@ import { Request, Response, Router } from 'express';
 import auth from '../auth/auth';
 import { asyncHandler } from '../async-handler';
 import { requireUserId } from '../auth/current-user.utils';
-import { addComment, deleteComment, getCommentsByArticle } from './comment.service';
+import { requireRouteParam } from '../route-param.utils';
+import {
+  addComment,
+  deleteComment,
+  getCommentsByArticle,
+} from './comment.service';
 
 const router = Router();
 
@@ -17,9 +22,12 @@ router.get(
   '/articles/:slug/comments',
   auth.optional,
   asyncHandler(async (req: Request, res: Response) => {
-    const comments = await getCommentsByArticle(req.params.slug, req.auth?.user?.id);
+    const comments = await getCommentsByArticle(
+      requireRouteParam(req.params.slug, 'slug'),
+      req.auth?.user?.id
+    );
     res.json({ comments });
-  }),
+  })
 );
 
 /**
@@ -34,9 +42,13 @@ router.post(
   '/articles/:slug/comments',
   auth.required,
   asyncHandler(async (req: Request, res: Response) => {
-    const comment = await addComment(req.body.comment.body, req.params.slug, requireUserId(req));
+    const comment = await addComment(
+      req.body.comment.body,
+      requireRouteParam(req.params.slug, 'slug'),
+      requireUserId(req)
+    );
     res.json({ comment });
-  }),
+  })
 );
 
 /**
@@ -52,7 +64,7 @@ router.delete(
   asyncHandler(async (req: Request, res: Response) => {
     await deleteComment(Number(req.params.id), requireUserId(req));
     res.status(200).json({});
-  }),
+  })
 );
 
 export default router;

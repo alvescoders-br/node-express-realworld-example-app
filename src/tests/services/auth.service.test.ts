@@ -1,8 +1,35 @@
 import * as bcrypt from 'bcryptjs';
-import { createUser, getCurrentUser, login, updateUser } from '../../app/routes/auth/auth.service';
 import prismaMock from '../prisma-mock';
+import {
+  createUser,
+  getCurrentUser,
+  login,
+  updateUser,
+} from '../../app/routes/auth/auth.service';
+
+const prismaUserMock = prismaMock.user as unknown as {
+  create: jest.Mock;
+  findUnique: jest.Mock;
+  update: jest.Mock;
+};
+
+const mockUserFindUnique = (value: unknown) => {
+  prismaUserMock.findUnique.mockResolvedValue(value);
+};
+
+const mockUserCreate = (value: unknown) => {
+  prismaUserMock.create.mockResolvedValue(value);
+};
+
+const mockUserUpdate = (value: unknown) => {
+  prismaUserMock.update.mockResolvedValue(value);
+};
 
 describe('AuthService', () => {
+  beforeEach(() => {
+    mockUserFindUnique(null);
+  });
+
   describe('createUser', () => {
     test('should create new user ', async () => {
       // Given
@@ -25,8 +52,7 @@ describe('AuthService', () => {
       };
 
       // When
-      // @ts-ignore
-      prismaMock.user.create.mockResolvedValue(mockedResponse);
+      mockUserCreate(mockedResponse);
 
       // Then
       await expect(createUser(user)).resolves.toHaveProperty('token');
@@ -42,8 +68,10 @@ describe('AuthService', () => {
       };
 
       // Then
-      const error = String({ errors: { username: ["can't be blank"] } });
-      await expect(createUser(user)).rejects.toThrow(error);
+      await expect(createUser(user)).rejects.toMatchObject({
+        errorCode: 422,
+        response: { errors: { username: ["can't be blank"] } },
+      });
     });
 
     test('should throw an error when creating new user with empty email ', async () => {
@@ -56,8 +84,10 @@ describe('AuthService', () => {
       };
 
       // Then
-      const error = String({ errors: { email: ["can't be blank"] } });
-      await expect(createUser(user)).rejects.toThrow(error);
+      await expect(createUser(user)).rejects.toMatchObject({
+        errorCode: 422,
+        response: { errors: { email: ["can't be blank"] } },
+      });
     });
 
     test('should throw an error when creating new user with empty password ', async () => {
@@ -70,8 +100,10 @@ describe('AuthService', () => {
       };
 
       // Then
-      const error = String({ errors: { password: ["can't be blank"] } });
-      await expect(createUser(user)).rejects.toThrow(error);
+      await expect(createUser(user)).rejects.toMatchObject({
+        errorCode: 422,
+        response: { errors: { password: ["can't be blank"] } },
+      });
     });
 
     test('should throw an exception when creating a new user with already existing user on same username ', async () => {
@@ -95,11 +127,18 @@ describe('AuthService', () => {
       };
 
       // When
-      prismaMock.user.findUnique.mockResolvedValue(mockedExistingUser);
+      mockUserFindUnique(mockedExistingUser);
 
       // Then
-      const error = { email: ['has already been taken'] }.toString();
-      await expect(createUser(user)).rejects.toThrow(error);
+      await expect(createUser(user)).rejects.toMatchObject({
+        errorCode: 422,
+        response: {
+          errors: {
+            email: ['has already been taken'],
+            username: ['has already been taken'],
+          },
+        },
+      });
     });
   });
 
@@ -125,7 +164,7 @@ describe('AuthService', () => {
       };
 
       // When
-      prismaMock.user.findUnique.mockResolvedValue(mockedResponse);
+      mockUserFindUnique(mockedResponse);
 
       // Then
       await expect(login(user)).resolves.toHaveProperty('token');
@@ -139,8 +178,10 @@ describe('AuthService', () => {
       };
 
       // Then
-      const error = String({ errors: { email: ["can't be blank"] } });
-      await expect(login(user)).rejects.toThrow(error);
+      await expect(login(user)).rejects.toMatchObject({
+        errorCode: 422,
+        response: { errors: { email: ["can't be blank"] } },
+      });
     });
 
     test('should throw an error when the password is empty', async () => {
@@ -151,8 +192,10 @@ describe('AuthService', () => {
       };
 
       // Then
-      const error = String({ errors: { password: ["can't be blank"] } });
-      await expect(login(user)).rejects.toThrow(error);
+      await expect(login(user)).rejects.toMatchObject({
+        errorCode: 422,
+        response: { errors: { password: ["can't be blank"] } },
+      });
     });
 
     test('should throw an error when no user is found', async () => {
@@ -163,11 +206,13 @@ describe('AuthService', () => {
       };
 
       // When
-      prismaMock.user.findUnique.mockResolvedValue(null);
+      mockUserFindUnique(null);
 
       // Then
-      const error = String({ errors: { 'email or password': ['is invalid'] } });
-      await expect(login(user)).rejects.toThrow(error);
+      await expect(login(user)).rejects.toMatchObject({
+        errorCode: 403,
+        response: { errors: { 'email or password': ['is invalid'] } },
+      });
     });
 
     test('should throw an error if the password is wrong', async () => {
@@ -191,11 +236,13 @@ describe('AuthService', () => {
       };
 
       // When
-      prismaMock.user.findUnique.mockResolvedValue(mockedResponse);
+      mockUserFindUnique(mockedResponse);
 
       // Then
-      const error = String({ errors: { 'email or password': ['is invalid'] } });
-      await expect(login(user)).rejects.toThrow(error);
+      await expect(login(user)).rejects.toMatchObject({
+        errorCode: 403,
+        response: { errors: { 'email or password': ['is invalid'] } },
+      });
     });
   });
 
@@ -216,7 +263,7 @@ describe('AuthService', () => {
       };
 
       // When
-      prismaMock.user.findUnique.mockResolvedValue(mockedResponse);
+      mockUserFindUnique(mockedResponse);
 
       // Then
       await expect(getCurrentUser(id)).resolves.toHaveProperty('token');
@@ -245,7 +292,7 @@ describe('AuthService', () => {
       };
 
       // When
-      prismaMock.user.update.mockResolvedValue(mockedResponse);
+      mockUserUpdate(mockedResponse);
 
       // Then
       await expect(updateUser(user, user.id)).resolves.toHaveProperty('token');

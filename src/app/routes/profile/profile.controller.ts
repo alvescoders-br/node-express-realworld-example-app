@@ -2,6 +2,7 @@ import { Request, Response, Router } from 'express';
 import auth from '../auth/auth';
 import { asyncHandler } from '../async-handler';
 import { requireUserId } from '../auth/current-user.utils';
+import { requireRouteParam } from '../route-param.utils';
 import { followUser, getProfile, unfollowUser } from './profile.service';
 
 const router = Router();
@@ -17,9 +18,12 @@ router.get(
   '/profiles/:username',
   auth.optional,
   asyncHandler(async (req: Request, res: Response) => {
-    const profile = await getProfile(req.params.username, req.auth?.user?.id);
+    const profile = await getProfile(
+      requireRouteParam(req.params.username, 'username'),
+      req.auth?.user?.id
+    );
     res.json({ profile });
-  }),
+  })
 );
 
 /**
@@ -33,9 +37,12 @@ router.post(
   '/profiles/:username/follow',
   auth.required,
   asyncHandler(async (req: Request, res: Response) => {
-    const profile = await followUser(req.params?.username, requireUserId(req));
+    const profile = await followUser(
+      requireRouteParam(req.params.username, 'username'),
+      requireUserId(req)
+    );
     res.json({ profile });
-  }),
+  })
 );
 
 /**
@@ -49,9 +56,12 @@ router.delete(
   '/profiles/:username/follow',
   auth.required,
   asyncHandler(async (req: Request, res: Response) => {
-    const profile = await unfollowUser(req.params.username, requireUserId(req));
+    const profile = await unfollowUser(
+      requireRouteParam(req.params.username, 'username'),
+      requireUserId(req)
+    );
     res.json({ profile });
-  }),
+  })
 );
 
 export default router;

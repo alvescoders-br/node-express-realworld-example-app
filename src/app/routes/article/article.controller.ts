@@ -2,6 +2,7 @@ import { Request, Response, Router } from 'express';
 import auth from '../auth/auth';
 import { asyncHandler } from '../async-handler';
 import { requireUserId } from '../auth/current-user.utils';
+import { requireRouteParam } from '../route-param.utils';
 import {
   createArticle,
   deleteArticle,
@@ -30,7 +31,7 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const result = await getArticles(req.query, req.auth?.user?.id);
     res.json(result);
-  }),
+  })
 );
 
 /**
@@ -46,10 +47,10 @@ router.get(
     const result = await getFeed(
       Number(req.query.offset),
       Number(req.query.limit),
-      requireUserId(req),
+      requireUserId(req)
     );
     res.json(result);
-  }),
+  })
 );
 
 /**
@@ -67,7 +68,7 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const article = await createArticle(req.body.article, requireUserId(req));
     res.status(201).json({ article });
-  }),
+  })
 );
 
 /**
@@ -81,9 +82,12 @@ router.get(
   '/articles/:slug',
   auth.optional,
   asyncHandler(async (req: Request, res: Response) => {
-    const article = await getArticle(req.params.slug, req.auth?.user?.id);
+    const article = await getArticle(
+      requireRouteParam(req.params.slug, 'slug'),
+      req.auth?.user?.id
+    );
     res.json({ article });
-  }),
+  })
 );
 
 /**
@@ -100,9 +104,13 @@ router.put(
   '/articles/:slug',
   auth.required,
   asyncHandler(async (req: Request, res: Response) => {
-    const article = await updateArticle(req.body.article, req.params.slug, requireUserId(req));
+    const article = await updateArticle(
+      req.body.article,
+      requireRouteParam(req.params.slug, 'slug'),
+      requireUserId(req)
+    );
     res.json({ article });
-  }),
+  })
 );
 
 /**
@@ -115,9 +123,12 @@ router.delete(
   '/articles/:slug',
   auth.required,
   asyncHandler(async (req: Request, res: Response) => {
-    await deleteArticle(req.params.slug, requireUserId(req));
+    await deleteArticle(
+      requireRouteParam(req.params.slug, 'slug'),
+      requireUserId(req)
+    );
     res.sendStatus(204);
-  }),
+  })
 );
 
 export default router;

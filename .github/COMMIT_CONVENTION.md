@@ -16,33 +16,33 @@ a issue com `#<id>`.
 
 ## Tipos
 
-| Tipo | Quando usar |
-|------|-------------|
-| `feat` | Nova funcionalidade |
-| `fix` | Correção de bug |
+| Tipo       | Quando usar                                      |
+| ---------- | ------------------------------------------------ |
+| `feat`     | Nova funcionalidade                              |
+| `fix`      | Correção de bug                                  |
 | `refactor` | Refatoração sem mudança de comportamento externo |
-| `test` | Adição ou correção de testes |
-| `chore` | Manutenção (deps, build, config) |
-| `docs` | Documentação |
-| `style` | Formatação, sem mudança lógica |
-| `perf` | Melhoria de performance |
-| `ci` | Mudanças em CI/CD |
+| `test`     | Adição ou correção de testes                     |
+| `chore`    | Manutenção (deps, build, config)                 |
+| `docs`     | Documentação                                     |
+| `style`    | Formatação, sem mudança lógica                   |
+| `perf`     | Melhoria de performance                          |
+| `ci`       | Mudanças em CI/CD                                |
 
 ## Escopos sugeridos
 
-| Escopo | Domínio |
-|--------|---------|
-| `article` | Artigos e feed |
-| `comment` | Comentários (extração do monólito — §4.2) |
-| `favorite` | Favoritos (extração do monólito — §4.2) |
-| `bookmark` | Bookmarks (nova feature — §4.5) |
-| `auth` | Autenticação e JWT |
-| `profile` | Perfis de usuário |
-| `tag` | Tags |
-| `ratelimit` | Rate limiting (§4.4) |
-| `errors` | Tratamento de erros / asyncHandler (§4.3) |
-| `types` | Tipagem TypeScript / strict (§4.1) |
-| `prisma` | Schema e migrações |
+| Escopo      | Domínio                                   |
+| ----------- | ----------------------------------------- |
+| `article`   | Artigos e feed                            |
+| `comment`   | Comentários (extração do monólito — §4.2) |
+| `favorite`  | Favoritos (extração do monólito — §4.2)   |
+| `bookmark`  | Bookmarks (nova feature — §4.5)           |
+| `auth`      | Autenticação e JWT                        |
+| `profile`   | Perfis de usuário                         |
+| `tag`       | Tags                                      |
+| `ratelimit` | Rate limiting (§4.4)                      |
+| `errors`    | Tratamento de erros / asyncHandler (§4.3) |
+| `types`     | Tipagem TypeScript / strict (§4.1)        |
+| `prisma`    | Schema e migrações                        |
 
 ## Exemplos
 
@@ -63,3 +63,10 @@ docs: criar issue templates e Conventional Commits #1
    com permissão explícita via issue `needs-decision`.
 4. **Nunca commitar** os itens de §13: `harness/`, `AGENTS.md`, `CLAUDE.md`,
    `docs/` (protegidos via `.git/info/exclude`).
+
+## Exceção auditada
+
+- `9c910bd feat(article): add authenticated article bookmarking` não referencia
+  uma issue. A correção segura registrada em `#20` é não reescrever histórico
+  compartilhado; a partir de `#18`, o hook versionado em `.githooks/commit-msg`
+  rejeita novos commits sem `#<id>`.
